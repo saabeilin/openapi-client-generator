@@ -17,7 +17,7 @@ import yaml
 def sample_openapi_dict():
     """
     Return a sample OpenAPI specification as a dictionary.
-    
+
     This fixture provides a minimal valid OpenAPI specification that can be used
     for testing the parser and generators.
     """
@@ -85,16 +85,16 @@ def sample_openapi_dict():
 def sample_openapi_json_file(sample_openapi_dict):
     """
     Create a temporary JSON file with a sample OpenAPI specification.
-    
+
     This fixture creates a temporary file with a sample OpenAPI specification
     in JSON format, and returns the path to the file.
     """
-    with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
+    with tempfile.NamedTemporaryFile(suffix=".json", mode="w+", delete=False) as f:
         json.dump(sample_openapi_dict, f)
         temp_file_path = f.name
-    
+
     yield temp_file_path
-    
+
     # Clean up the temporary file
     os.unlink(temp_file_path)
 
@@ -103,16 +103,16 @@ def sample_openapi_json_file(sample_openapi_dict):
 def sample_openapi_yaml_file(sample_openapi_dict):
     """
     Create a temporary YAML file with a sample OpenAPI specification.
-    
+
     This fixture creates a temporary file with a sample OpenAPI specification
     in YAML format, and returns the path to the file.
     """
-    with tempfile.NamedTemporaryFile(suffix=".yaml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(suffix=".yaml", mode="w+", delete=False) as f:
         yaml.dump(sample_openapi_dict, f)
         temp_file_path = f.name
-    
+
     yield temp_file_path
-    
+
     # Clean up the temporary file
     os.unlink(temp_file_path)
 
@@ -121,7 +121,7 @@ def sample_openapi_yaml_file(sample_openapi_dict):
 def temp_output_dir():
     """
     Create a temporary directory for test output.
-    
+
     This fixture creates a temporary directory that can be used for testing
     code generation, and returns the path to the directory.
     """
