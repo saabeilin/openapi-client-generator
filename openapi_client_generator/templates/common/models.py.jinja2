@@ -1,0 +1,13 @@
+"""Generated models for the API."""
+
+from typing import Dict, List, Any, Optional, Union
+from pydantic import BaseModel, Field
+
+{% for model_name, model_schema in models.items() %}
+class {{ model_name }}(BaseModel):
+    """{{ model_schema.description or model_name }} model."""
+    
+    {% for prop_name, prop_schema in model_schema.properties.items() %}
+    {{ prop_name }}: {{ prop_schema.type_hint }} = Field({{ prop_schema.field_args }})
+    {% endfor %}
+{% endfor %}

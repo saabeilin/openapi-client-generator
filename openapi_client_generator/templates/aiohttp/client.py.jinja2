@@ -1,0 +1,63 @@
+"""Generated API client using the aiohttp library."""
+
+import aiohttp
+from typing import Dict, List, Any, Optional, Union
+
+from .models import *
+
+
+class APIClient:
+    """API client for interacting with the API."""
+
+    def __init__(self, base_url: str, auth_token: Optional[str] = None, timeout: int = 30):
+        """Initialize the API client."""
+        self.base_url = base_url.rstrip('/')
+        self.auth_token = auth_token
+        self.timeout = timeout
+        self.session = None
+
+    async def _ensure_session(self):
+        """Ensure that a session exists."""
+        if self.session is None:
+            self.session = aiohttp.ClientSession()
+            if self.auth_token:
+                self.session.headers.update({'Authorization': f'Bearer {self.auth_token}'})
+
+    async def close(self):
+        """Close the session."""
+        if self.session is not None:
+            await self.session.close()
+            self.session = None
+
+    async def __aenter__(self):
+        """Enter async context manager."""
+        await self._ensure_session()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Exit async context manager."""
+        await self.close()
+
+    {% for operation in operations %}
+    async def {{ operation.method_name }}(self, {% for param in operation.parameters %}{{ param.name }}: {{ param.type_hint }}{% if not loop.last %}, {% endif %}{% endfor %}{% if operation.parameters and operation.request_body %}, {% endif %}{% if operation.request_body %}body: Dict[str, Any]{% endif %}) -> {{ operation.return_type }}:
+        """{{ operation.summary }}
+
+        {{ operation.description }}
+        {% for param in operation.parameters %}
+        Args:
+            {{ param.name }}: {{ param.description }}
+        {% endfor %}
+        {% if operation.request_body %}
+        Args:
+            body: {{ operation.request_body.description }}
+        {% endif %}
+
+        Returns:
+            {{ operation.return_type_description }}
+        """
+        await self._ensure_session()
+        url = f"{self.base_url}{{ operation.path_template }}"
+        
+        # Implementation would go here
+        pass
+    {% endfor %}

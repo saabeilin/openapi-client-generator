@@ -1,0 +1,11 @@
+"""Generated client for {{ api_title }}."""
+
+{% if client_type == 'httpx' %}
+from .client import APIClient, AsyncAPIClient
+
+__all__ = ["APIClient", "AsyncAPIClient"]
+{% else %}
+from .client import APIClient
+
+__all__ = ["APIClient"]
+{% endif %}

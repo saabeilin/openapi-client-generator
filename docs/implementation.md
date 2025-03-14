@@ -15,7 +15,7 @@ This document outlines the implementation plan for the OpenAPI Client Generator 
 
 2. **Code Generation**:
    - **Jinja2**: Template engine for generating Python code
-   - **black**: For formatting the generated code
+   - **ruff**: For linting and formatting the generated code
 
 3. **CLI Interface**:
    - **argparse** (standard library): For parsing command-line arguments
@@ -62,7 +62,7 @@ The code generator will use the parsed OpenAPI specification to generate Python 
    - Process the parsed OpenAPI specification
    - Generate model classes for API schemas
    - Generate the `APIClient` class with methods for each API operation
-   - Format the generated code using Black
+   - Format the generated code using Ruff
    - Write the output to the specified directory
 
 3. Code generation strategy:

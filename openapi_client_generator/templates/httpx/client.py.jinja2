@@ -1,0 +1,102 @@
+"""Generated API client using the httpx library."""
+
+import httpx
+from typing import Dict, List, Any, Optional, Union
+
+from .models import *
+
+
+class APIClient:
+    """Synchronous API client for interacting with the API."""
+
+    def __init__(self, base_url: str, auth_token: Optional[str] = None, timeout: int = 30):
+        """Initialize the API client."""
+        self.base_url = base_url.rstrip('/')
+        self.auth_token = auth_token
+        self.timeout = timeout
+        self.client = httpx.Client(timeout=timeout)
+        if auth_token:
+            self.client.headers.update({'Authorization': f'Bearer {auth_token}'})
+
+    def close(self):
+        """Close the client."""
+        self.client.close()
+
+    def __enter__(self):
+        """Enter context manager."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit context manager."""
+        self.close()
+
+    {% for operation in operations %}
+    def {{ operation.method_name }}(self, {% for param in operation.parameters %}{{ param.name }}: {{ param.type_hint }}{% if not loop.last %}, {% endif %}{% endfor %}{% if operation.parameters and operation.request_body %}, {% endif %}{% if operation.request_body %}body: Dict[str, Any]{% endif %}) -> {{ operation.return_type }}:
+        """{{ operation.summary }}
+
+        {{ operation.description }}
+        {% for param in operation.parameters %}
+        Args:
+            {{ param.name }}: {{ param.description }}
+        {% endfor %}
+        {% if operation.request_body %}
+        Args:
+            body: {{ operation.request_body.description }}
+        {% endif %}
+
+        Returns:
+            {{ operation.return_type_description }}
+        """
+        url = f"{self.base_url}{{ operation.path_template }}"
+        
+        # Implementation would go here
+        pass
+    {% endfor %}
+
+
+class AsyncAPIClient:
+    """Asynchronous API client for interacting with the API."""
+
+    def __init__(self, base_url: str, auth_token: Optional[str] = None, timeout: int = 30):
+        """Initialize the API client."""
+        self.base_url = base_url.rstrip('/')
+        self.auth_token = auth_token
+        self.timeout = timeout
+        self.client = httpx.AsyncClient(timeout=timeout)
+        if auth_token:
+            self.client.headers.update({'Authorization': f'Bearer {auth_token}'})
+
+    async def close(self):
+        """Close the client."""
+        await self.client.aclose()
+
+    async def __aenter__(self):
+        """Enter async context manager."""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Exit async context manager."""
+        await self.close()
+
+    {% for operation in operations %}
+    async def {{ operation.method_name }}(self, {% for param in operation.parameters %}{{ param.name }}: {{ param.type_hint }}{% if not loop.last %}, {% endif %}{% endfor %}{% if operation.parameters and operation.request_body %}, {% endif %}{% if operation.request_body %}body: Dict[str, Any]{% endif %}) -> {{ operation.return_type }}:
+        """{{ operation.summary }}
+
+        {{ operation.description }}
+        {% for param in operation.parameters %}
+        Args:
+            {{ param.name }}: {{ param.description }}
+        {% endfor %}
+        {% if operation.request_body %}
+        Args:
+            body: {{ operation.request_body.description }}
+        {% endif %}
+
+        Returns:
+            {{ operation.return_type_description }}
+        """
+        url = f"{self.base_url}{{ operation.path_template }}"
+        
+        # Implementation would go here
+        pass
+    {% endfor %}
