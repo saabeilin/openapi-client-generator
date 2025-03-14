@@ -10,6 +10,7 @@ from typing import Dict, Any, List
 
 from .base import ClientGenerator
 from ..parser.models import OpenAPISpec
+from ..helpers import to_snake_case
 
 
 class AiohttpClientGenerator(ClientGenerator):
@@ -94,7 +95,7 @@ class AiohttpClientGenerator(ClientGenerator):
                     continue
 
                 # Convert operationId to snake_case
-                method_name = self._to_snake_case(operation_id)
+                method_name = to_snake_case(operation_id)
 
                 # Method signature
                 f.write(f"    async def {method_name}(self, ")
@@ -102,7 +103,7 @@ class AiohttpClientGenerator(ClientGenerator):
                 # Parameters
                 params = []
                 for param in operation.get("parameters", []):
-                    param_name = self._to_snake_case(param.get("name", ""))
+                    param_name = to_snake_case(param.get("name", ""))
                     params.append(f"{param_name}: str")
 
                 # Add body parameter if needed
@@ -118,42 +119,3 @@ class AiohttpClientGenerator(ClientGenerator):
                 f.write("        # Implementation would go here\n")
                 f.write("        pass\n\n")
 
-    def _generate_models_file(self, spec: OpenAPISpec, package_dir: Path) -> None:
-        """
-        Generate the models.py file.
-
-        Args:
-            spec: Parsed OpenAPI specification
-            package_dir: Directory where the file will be written
-        """
-        # In a real implementation, this would use Jinja2 templates
-        # For now, we'll just create a simple stub
-
-        with open(package_dir / "models.py", "w") as f:
-            f.write('"""Generated models for the API."""\n\n')
-            f.write("from typing import Dict, List, Any, Optional, Union\n")
-            f.write("from pydantic import BaseModel, Field\n\n\n")
-
-            # In a real implementation, we would generate models based on the schema
-            f.write("# Models would be generated here based on the schema\n")
-
-    def _to_snake_case(self, text: str) -> str:
-        """
-        Convert a string to snake_case.
-
-        Args:
-            text: String to convert
-
-        Returns:
-            str: Converted string
-        """
-        import re
-
-        # Replace non-alphanumeric characters with underscores
-        s1 = re.sub(r'[^a-zA-Z0-9]', '_', text)
-
-        # Insert underscores between camelCase
-        s2 = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', s1)
-
-        # Convert to lowercase
-        return s2.lower()

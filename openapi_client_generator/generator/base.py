@@ -96,3 +96,28 @@ class ClientGenerator(ABC):
             spec: Parsed OpenAPI specification
         """
         pass
+
+    def _generate_models_file(self, spec: OpenAPISpec, package_dir: Path) -> None:
+        """
+        Generate the models.py file.
+
+        This method generates Pydantic model classes for all schemas defined in the
+        OpenAPI specification. The models are generated using a Jinja2 template.
+
+        Args:
+            spec: Parsed OpenAPI specification
+            package_dir: Directory where the file will be written
+        """
+        # Get models from the specification
+        # This returns a dictionary of model information extracted from the components.schemas section
+        # of the OpenAPI specification. Each model has a description and a dictionary of properties.
+        models = spec.get_models()
+
+        # Render the models template
+        # The template iterates over the models and their properties to generate Pydantic model classes.
+        template = self.template_env.get_template("common/models.py.jinja2")
+        content = template.render(models=models)
+
+        # Write the rendered template to the models.py file
+        with open(package_dir / "models.py", "w") as f:
+            f.write(content)
