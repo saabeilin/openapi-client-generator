@@ -1,6 +1,8 @@
 """Generated API client using the aiohttp library."""
 
 import aiohttp
+import json
+from json import JSONDecodeError
 from typing import Dict, List, Any, Optional, Union
 
 from .models import *
@@ -13,13 +15,13 @@ class APIClient:
         """Initialize the API client."""
         self.base_url = base_url.rstrip('/')
         self.auth_token = auth_token
-        self.timeout = timeout
+        self.timeout = aiohttp.ClientTimeout(total=timeout)
         self.session = None
 
     async def _ensure_session(self):
         """Ensure that a session exists."""
         if self.session is None:
-            self.session = aiohttp.ClientSession()
+            self.session = aiohttp.ClientSession(timeout=self.timeout)
             if self.auth_token:
                 self.session.headers.update({'Authorization': f'Bearer {self.auth_token}'})
 
@@ -37,6 +39,43 @@ class APIClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Exit async context manager."""
         await self.close()
+
+    async def _make_request(self, method: str, url: str, params: Optional[Dict[str, Any]] = None, 
+                           data: Optional[Dict[str, Any]] = None, json: Optional[Dict[str, Any]] = None) -> Any:
+        """
+        Make a request to the API.
+
+        Args:
+            method: HTTP method (GET, POST, PUT, DELETE, etc.)
+            url: URL to make the request to
+            params: Query parameters
+            data: Form data
+            json: JSON data
+
+        Returns:
+            The response from the API
+
+        Raises:
+            aiohttp.ClientError: If the request fails
+        """
+        await self._ensure_session()
+
+        async with self.session.request(
+            method=method,
+            url=url,
+            params=params,
+            data=data,
+            json=json
+        ) as response:
+            # Raise an exception if the request failed
+            response.raise_for_status()
+
+            # Try to parse the response as JSON
+            try:
+                return await response.json()
+            except JSONDecodeError:
+                # If the response is not JSON, return the raw response text
+                return await response.text()
 
     {% for operation in operations %}
     async def {{ operation.method_name }}(self, {% for param in operation.parameters %}{{ param.name }}: {{ param.type_hint }}{% if not loop.last %}, {% endif %}{% endfor %}{% if operation.parameters and operation.request_body %}, {% endif %}{% if operation.request_body %}request_body: Dict[str, Any]{% endif %}) -> {{ operation.return_type }}:
@@ -58,6 +97,29 @@ class APIClient:
         await self._ensure_session()
         url = f"{self.base_url}{{ operation.path_template }}"
 
-        # Implementation would go here
-        pass
+        # Extract query parameters from the operation parameters
+        # Assume that all parameters that are not in the path are query parameters
+        params = {}
+        {% for param in operation.parameters %}
+        # Check if the parameter is in the path by looking for it in the path template
+        {% if "{" + param.name + "}" not in operation.path_template %}
+        if {{ param.name }} is not None:
+            params["{{ param.name }}"] = {{ param.name }}
+        {% endif %}
+        {% endfor %}
+
+        # Make the request
+        {% if operation.method == "get" %}
+        return await self._make_request("GET", url, params=params)
+        {% elif operation.method == "post" %}
+        return await self._make_request("POST", url, params=params, json={% if operation.request_body %}request_body{% else %}None{% endif %})
+        {% elif operation.method == "put" %}
+        return await self._make_request("PUT", url, params=params, json={% if operation.request_body %}request_body{% else %}None{% endif %})
+        {% elif operation.method == "delete" %}
+        return await self._make_request("DELETE", url, params=params, json={% if operation.request_body %}request_body{% else %}None{% endif %})
+        {% elif operation.method == "patch" %}
+        return await self._make_request("PATCH", url, params=params, json={% if operation.request_body %}request_body{% else %}None{% endif %})
+        {% else %}
+        return await self._make_request("{{ operation.method|upper }}", url, params=params, json={% if operation.request_body %}request_body{% else %}None{% endif %})
+        {% endif %}
     {% endfor %}

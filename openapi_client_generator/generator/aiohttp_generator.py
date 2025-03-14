@@ -51,70 +51,66 @@ class AiohttpClientGenerator(ClientGenerator):
             spec: Parsed OpenAPI specification
             package_dir: Directory where the file will be written
         """
-        # In a real implementation, this would use Jinja2 templates
-        # For now, we'll just create a simple stub
-
+        # Use the Jinja2 template for generating the client file
+        template = self.template_env.get_template("aiohttp/client.py.jinja2")
         operations = spec.get_operations()
 
+        # Process operations to ensure parameters are in the correct format for the template
+        for operation in operations:
+            processed_params = []
+            param_name_mapping = {}  # Map original parameter names to snake_case names
+
+            for param in operation.get("parameters", []):
+                if hasattr(param, "get_python_name") and hasattr(param, "get_python_type_hint"):
+                    # Parameter is a Parameter object
+                    original_name = param.name
+                    python_name = param.get_python_name()
+                    param_name_mapping[original_name] = python_name
+
+                    processed_params.append({
+                        "name": python_name,
+                        "type_hint": param.get_python_type_hint(),
+                        "description": param.description or ""
+                    })
+                elif isinstance(param, dict) and "name" in param:
+                    # Parameter is already a dictionary
+                    original_name = param.get("name", "")
+                    python_name = to_snake_case(original_name)
+                    param_name_mapping[original_name] = python_name
+
+                    processed_params.append({
+                        "name": python_name,
+                        "type_hint": "str",  # Default to str if type is not specified
+                        "description": param.get("description", "")
+                    })
+
+            operation["parameters"] = processed_params
+
+            # Update path_template to use snake_case parameter names
+            path_template = operation.get("path_template", "")
+            for original_name, python_name in param_name_mapping.items():
+                path_template = path_template.replace(f"{{{original_name}}}", f"{{{python_name}}}")
+            operation["path_template"] = path_template
+
+            # Process request body if it exists
+            if operation.get("request_body"):
+                # If request_body is a Reference or RequestBody object, extract the description
+                request_body = operation["request_body"]
+                description = ""
+                if hasattr(request_body, "description"):
+                    description = request_body.description or ""
+                elif isinstance(request_body, dict) and "description" in request_body:
+                    description = request_body["description"] or ""
+
+                # Set the request_body to True to indicate that it exists
+                # The template will use this to add the request_body parameter
+                operation["request_body"] = {
+                    "description": description
+                }
+
+        # Render the client template
+        content = template.render(operations=operations)
+
+        # Write the rendered template to the client.py file
         with open(package_dir / "client.py", "w") as f:
-            f.write('"""Generated API client using the aiohttp library."""\n\n')
-            f.write("import aiohttp\n")
-            f.write("from typing import Dict, List, Any, Optional, Union\n\n")
-            f.write("from .models import *\n\n\n")
-
-            f.write("class APIClient:\n")
-            f.write('    """API client for interacting with the API."""\n\n')
-
-            # Constructor
-            f.write("    def __init__(self, base_url: str, auth_token: Optional[str] = None, timeout: int = 30):\n")
-            f.write('        """Initialize the API client."""\n')
-            f.write("        self.base_url = base_url.rstrip('/')\n")
-            f.write("        self.auth_token = auth_token\n")
-            f.write("        self.timeout = timeout\n")
-            f.write("        self.session = None\n\n")
-
-            # Create session method
-            f.write("    async def _ensure_session(self):\n")
-            f.write('        """Ensure that a session exists."""\n')
-            f.write("        if self.session is None:\n")
-            f.write("            self.session = aiohttp.ClientSession()\n")
-            f.write("            if self.auth_token:\n")
-            f.write("                self.session.headers.update({'Authorization': f'Bearer {self.auth_token}'})\n\n")
-
-            # Close method
-            f.write("    async def close(self):\n")
-            f.write('        """Close the session."""\n')
-            f.write("        if self.session is not None:\n")
-            f.write("            await self.session.close()\n")
-            f.write("            self.session = None\n\n")
-
-            # Methods
-            for operation in operations:
-                operation_id = operation.get("operation_id", "")
-                if not operation_id:
-                    continue
-
-                # Convert operationId to snake_case
-                method_name = to_snake_case(operation_id)
-
-                # Method signature
-                f.write(f"    async def {method_name}(self, ")
-
-                # Parameters
-                params = []
-                for param in operation.get("parameters", []):
-                    param_name = to_snake_case(param.get("name", ""))
-                    params.append(f"{param_name}: str")
-
-                # Add request_body parameter if needed
-                if operation.get("request_body"):
-                    params.append("request_body: Dict[str, Any]")
-
-                f.write(", ".join(params))
-                f.write(") -> Any:\n")
-
-                # Method docstring
-                f.write(f'        """{operation.get("summary", "")}"""\n')
-                f.write("        await self._ensure_session()\n")
-                f.write("        # Implementation would go here\n")
-                f.write("        pass\n\n")
+            f.write(content)
