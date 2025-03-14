@@ -39,7 +39,7 @@ class APIClient:
         await self.close()
 
     {% for operation in operations %}
-    async def {{ operation.method_name }}(self, {% for param in operation.parameters %}{{ param.name }}: {{ param.type_hint }}{% if not loop.last %}, {% endif %}{% endfor %}{% if operation.parameters and operation.request_body %}, {% endif %}{% if operation.request_body %}body: Dict[str, Any]{% endif %}) -> {{ operation.return_type }}:
+    async def {{ operation.method_name }}(self, {% for param in operation.parameters %}{{ param.name }}: {{ param.type_hint }}{% if not loop.last %}, {% endif %}{% endfor %}{% if operation.parameters and operation.request_body %}, {% endif %}{% if operation.request_body %}request_body: Dict[str, Any]{% endif %}) -> {{ operation.return_type }}:
         """{{ operation.summary }}
 
         {{ operation.description }}
@@ -49,7 +49,7 @@ class APIClient:
         {% endfor %}
         {% if operation.request_body %}
         Args:
-            body: {{ operation.request_body.description }}
+            request_body: {{ operation.request_body.description }}
         {% endif %}
 
         Returns:
@@ -57,7 +57,7 @@ class APIClient:
         """
         await self._ensure_session()
         url = f"{self.base_url}{{ operation.path_template }}"
-        
+
         # Implementation would go here
         pass
     {% endfor %}

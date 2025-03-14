@@ -71,6 +71,7 @@ class RequestsClientGenerator(ClientGenerator):
         1. Converts parameter objects to dictionaries with name, type_hint, and description
         2. Ensures parameter names are in snake_case format
         3. Updates path templates to use snake_case parameter names
+        4. Processes request bodies to ensure they are in the correct format for the template
 
         The processed operations are then passed to the template for rendering.
 
@@ -117,6 +118,22 @@ class RequestsClientGenerator(ClientGenerator):
             for original_name, python_name in param_name_mapping.items():
                 path_template = path_template.replace(f"{{{original_name}}}", f"{{{python_name}}}")
             operation["path_template"] = path_template
+
+            # Process request body if it exists
+            if operation.get("request_body"):
+                # If request_body is a Reference or RequestBody object, extract the description
+                request_body = operation["request_body"]
+                description = ""
+                if hasattr(request_body, "description"):
+                    description = request_body.description or ""
+                elif isinstance(request_body, dict) and "description" in request_body:
+                    description = request_body["description"] or ""
+
+                # Set the request_body to True to indicate that it exists
+                # The template will use this to add the request_body parameter
+                operation["request_body"] = {
+                    "description": description
+                }
 
         # Render the client template
         template = self.template_env.get_template("requests/client.py.jinja2")

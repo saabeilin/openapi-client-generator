@@ -277,7 +277,7 @@ class Operation(BaseModel):
     external_docs: Optional[ExternalDocumentation] = Field(None, description="External documentation for the operation")
     operation_id: Optional[str] = Field(None, alias="operationId", description="A unique identifier for the operation")
     parameters: Optional[List[Union[Parameter, Reference]]] = Field(None, description="Parameters for the operation")
-    request_body: Optional[Union[RequestBody, Reference]] = Field(None, description="Request body for the operation")
+    request_body: Optional[Union[RequestBody, Reference]] = Field(None, alias="requestBody", description="Request body for the operation")
     responses: Dict[str, Union[Response, Reference]] = Field(..., description="Responses for the operation")
     deprecated: Optional[bool] = Field(None, description="Whether the operation is deprecated")
     security: Optional[List[Dict[str, List[str]]]] = Field(None, description="Security requirements for the operation")

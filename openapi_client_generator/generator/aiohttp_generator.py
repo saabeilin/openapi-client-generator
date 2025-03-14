@@ -106,9 +106,9 @@ class AiohttpClientGenerator(ClientGenerator):
                     param_name = to_snake_case(param.get("name", ""))
                     params.append(f"{param_name}: str")
 
-                # Add body parameter if needed
+                # Add request_body parameter if needed
                 if operation.get("request_body"):
-                    params.append("body: Dict[str, Any]")
+                    params.append("request_body: Dict[str, Any]")
 
                 f.write(", ".join(params))
                 f.write(") -> Any:\n")
@@ -118,4 +118,3 @@ class AiohttpClientGenerator(ClientGenerator):
                 f.write("        await self._ensure_session()\n")
                 f.write("        # Implementation would go here\n")
                 f.write("        pass\n\n")
-
