@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openapi_client_generator"
+version = "0.1.0"
+description = "Generate Python client libraries from OpenAPI v3 specifications"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "OpenAPI Client Generator Team"}
+]
+
+[tool.ruff]
+# Enable flake8-bugbear (`B`) rules.
+select = ["E", "F", "B", "I", "N", "UP", "ANN", "S", "BLE", "A", "C4", "T10", "ISC", "ICN"]
+ignore = ["ANN101", "ANN102"]
+
+# Same as Black.
+line-length = 88
+indent-width = 4
+
+# Assume Python 3.8
+target-version = "py38"
+
+[tool.ruff.lint]
+# Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`) codes by default.
+select = ["E", "F", "B", "I"]
+ignore = []
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.format]
+# Use double quotes for strings.
+quote-style = "double"
+
+# Indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Automatically detect the appropriate line ending.
+line-ending = "auto"
+
+[tool.ruff.isort]
+known-third-party = ["pydantic", "yaml", "jinja2", "requests", "aiohttp", "httpx"]

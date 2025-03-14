@@ -146,6 +146,64 @@ openapi_client_generator/
    - Validate the generated code
    - Ensure compatibility with different Python versions
 
+## Testing
+
+The project uses pytest for unit testing. All tests are located in the `tests` directory.
+
+### Test Structure
+
+The test directory follows this structure:
+
+```
+tests/
+├── conftest.py              # Shared pytest fixtures and configuration
+├── test_parser/             # Tests for the parser module
+│   ├── test_openapi_parser.py
+│   └── test_models.py
+├── test_generator/          # Tests for the generator module
+│   ├── test_base.py
+│   ├── test_requests_generator.py
+│   ├── test_aiohttp_generator.py
+│   └── test_httpx_generator.py
+└── test_main.py             # Tests for the CLI interface
+```
+
+### Running Tests
+
+To run the tests, use the `unittest` target in the Makefile:
+
+```bash
+make unittest
+```
+
+This will run pytest with coverage reporting. You can also run pytest directly:
+
+```bash
+pytest
+```
+
+For more verbose output, use:
+
+```bash
+pytest -v
+```
+
+To run tests with coverage reporting:
+
+```bash
+pytest --cov=openapi_client_generator
+```
+
+### Writing Tests
+
+When writing tests, follow these guidelines:
+
+1. Use pytest fixtures for setup and teardown
+2. Use parametrized tests for testing multiple inputs
+3. Mock external dependencies
+4. Test both success and failure cases
+5. Aim for high test coverage
+
 ## Detailed Implementation Notes
 
 ### OpenAPI Parsing
