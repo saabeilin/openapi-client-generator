@@ -2,7 +2,16 @@
 Requests client generator for OpenAPI Client Generator.
 
 This module provides functionality for generating Python client code
-using the requests library.
+using the requests library. It uses Jinja2 templates to generate the code,
+which makes it more maintainable and easier to customize.
+
+The generator uses the following templates:
+- common/__init__.py.jinja2: Template for the package __init__.py file
+- requests/client.py.jinja2: Template for the client.py file
+- common/models.py.jinja2: Template for the models.py file
+
+The templates are rendered with data from the OpenAPI specification,
+and the resulting code is written to the output directory.
 """
 
 from pathlib import Path
@@ -24,6 +33,14 @@ class RequestsClientGenerator(ClientGenerator):
         """
         Generate client code from an OpenAPI specification.
 
+        This method creates the package directory and generates the following files:
+        - __init__.py: Package initialization file
+        - client.py: API client implementation
+        - models.py: Pydantic models for API schemas
+
+        Each file is generated using a Jinja2 template, which is rendered with
+        data from the OpenAPI specification.
+
         Args:
             spec: Parsed OpenAPI specification
         """
@@ -32,10 +49,10 @@ class RequestsClientGenerator(ClientGenerator):
         package_dir.mkdir(exist_ok=True)
 
         # Create __init__.py
+        template = self.template_env.get_template("common/__init__.py.jinja2")
+        content = template.render(api_title=spec.info.title, client_type='requests')
         with open(package_dir / "__init__.py", "w") as f:
-            f.write(f'"""Generated client for {spec.info.title}."""\n\n')
-            f.write("from .client import APIClient\n\n")
-            f.write('__all__ = ["APIClient"]\n')
+            f.write(content)
 
         # Create client.py
         self._generate_client_file(spec, package_dir)
@@ -47,61 +64,64 @@ class RequestsClientGenerator(ClientGenerator):
         """
         Generate the client.py file.
 
+        This method generates the API client implementation using a Jinja2 template.
+        It processes the operations from the OpenAPI specification to ensure they
+        are in the correct format for the template:
+
+        1. Converts parameter objects to dictionaries with name, type_hint, and description
+        2. Ensures parameter names are in snake_case format
+        3. Updates path templates to use snake_case parameter names
+
+        The processed operations are then passed to the template for rendering.
+
         Args:
             spec: Parsed OpenAPI specification
             package_dir: Directory where the file will be written
         """
-        # In a real implementation, this would use Jinja2 templates
-        # For now, we'll just create a simple stub
-
+        # Get operations from the specification
         operations = spec.get_operations()
 
+        # Process operations to ensure parameters are in the correct format for the template
+        for operation in operations:
+            processed_params = []
+            param_name_mapping = {}  # Map original parameter names to snake_case names
+
+            for param in operation.get("parameters", []):
+                if hasattr(param, "get_python_name") and hasattr(param, "get_python_type_hint"):
+                    # Parameter is a Parameter object
+                    original_name = param.name
+                    python_name = param.get_python_name()
+                    param_name_mapping[original_name] = python_name
+
+                    processed_params.append({
+                        "name": python_name,
+                        "type_hint": param.get_python_type_hint(),
+                        "description": param.description or ""
+                    })
+                elif isinstance(param, dict) and "name" in param:
+                    # Parameter is already a dictionary
+                    original_name = param.get("name", "")
+                    python_name = to_snake_case(original_name)
+                    param_name_mapping[original_name] = python_name
+
+                    processed_params.append({
+                        "name": python_name,
+                        "type_hint": "str",  # Default to str if type is not specified
+                        "description": param.get("description", "")
+                    })
+
+            operation["parameters"] = processed_params
+
+            # Update path_template to use snake_case parameter names
+            path_template = operation.get("path_template", "")
+            for original_name, python_name in param_name_mapping.items():
+                path_template = path_template.replace(f"{{{original_name}}}", f"{{{python_name}}}")
+            operation["path_template"] = path_template
+
+        # Render the client template
+        template = self.template_env.get_template("requests/client.py.jinja2")
+        content = template.render(operations=operations)
+
+        # Write the rendered template to the client.py file
         with open(package_dir / "client.py", "w") as f:
-            f.write('"""Generated API client using the requests library."""\n\n')
-            f.write("import requests\n")
-            f.write("from typing import Dict, List, Any, Optional, Union\n\n")
-            f.write("from .models import *\n\n\n")
-
-            f.write("class APIClient:\n")
-            f.write('    """API client for interacting with the API."""\n\n')
-
-            # Constructor
-            f.write("    def __init__(self, base_url: str, auth_token: Optional[str] = None, timeout: int = 30):\n")
-            f.write('        """Initialize the API client."""\n')
-            f.write("        self.base_url = base_url.rstrip('/')\n")
-            f.write("        self.auth_token = auth_token\n")
-            f.write("        self.timeout = timeout\n")
-            f.write("        self.session = requests.Session()\n")
-            f.write("        if auth_token:\n")
-            f.write("            self.session.headers.update({'Authorization': f'Bearer {auth_token}'})\n\n")
-
-            # Methods
-            for operation in operations:
-                operation_id = operation.get("operation_id", "")
-                if not operation_id:
-                    continue
-
-                # Convert operationId to snake_case
-                method_name = to_snake_case(operation_id)
-
-                # Method signature
-                f.write(f"    def {method_name}(self, ")
-
-                # Parameters
-                params = []
-                for param in operation.get("parameters", []):
-                    param_name = to_snake_case(param.get("name", ""))
-                    params.append(f"{param_name}: str")
-
-                # Add body parameter if needed
-                if operation.get("request_body"):
-                    params.append("body: Dict[str, Any]")
-
-                f.write(", ".join(params))
-                f.write(") -> Any:\n")
-
-                # Method docstring
-                f.write(f'        """{operation.get("summary", "")}"""\n')
-                f.write("        # Implementation would go here\n")
-                f.write("        pass\n\n")
-
+            f.write(content)

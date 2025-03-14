@@ -275,7 +275,7 @@ class Operation(BaseModel):
     summary: Optional[str] = Field(None, description="A summary of the operation")
     description: Optional[str] = Field(None, description="A description of the operation")
     external_docs: Optional[ExternalDocumentation] = Field(None, description="External documentation for the operation")
-    operation_id: Optional[str] = Field(None, description="A unique identifier for the operation")
+    operation_id: Optional[str] = Field(None, alias="operationId", description="A unique identifier for the operation")
     parameters: Optional[List[Union[Parameter, Reference]]] = Field(None, description="Parameters for the operation")
     request_body: Optional[Union[RequestBody, Reference]] = Field(None, description="Request body for the operation")
     responses: Dict[str, Union[Response, Reference]] = Field(..., description="Responses for the operation")

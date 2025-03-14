@@ -102,10 +102,9 @@ class TestOpenAPIParser:
         assert len(operations) == 1
         assert operations[0]["method"] == "get"
         assert operations[0]["path"] == "/users/{userId}"
-        # TODO FIXME
-        # The operation_id is not being parsed correctly, so we'll skip this assertion for now
-        # assert operations[0]["operation_id"] == "getUserById"
-        assert operations[0]["method_name"] == "operation"
+        # The operation_id is now being parsed correctly
+        assert operations[0]["operation_id"] == "getUserById"
+        assert operations[0]["method_name"] == "get_user_by_id"
 
     def test_get_models(self, sample_openapi_json_file):
         """Test getting models from a specification."""

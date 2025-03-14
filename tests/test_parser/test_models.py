@@ -128,22 +128,19 @@ class TestOpenAPIModels:
         """Test getting Python method names from operations."""
         # Simple operation ID
         simple_op = Operation(
-            operation_id="getUserById",
-            responses={}
+            **{"operationId": "getUserById", "responses": {}}
         )
         assert simple_op.get_python_method_name() == "get_user_by_id"
 
         # Operation ID with special characters
         special_op = Operation(
-            operation_id="get-user-by-id",
-            responses={}
+            **{"operationId": "get-user-by-id", "responses": {}}
         )
         assert special_op.get_python_method_name() == "get_user_by_id"
 
         # Operation ID with mixed case
         mixed_case_op = Operation(
-            operation_id="GetUserByID",
-            responses={}
+            **{"operationId": "GetUserByID", "responses": {}}
         )
         assert mixed_case_op.get_python_method_name() == "get_user_by_id"
 
