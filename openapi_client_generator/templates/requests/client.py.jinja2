@@ -30,6 +30,43 @@ class APIClient:
         """Exit context manager."""
         self.close()
 
+    def _make_request(self, method: str, url: str, params: Optional[Dict[str, Any]] = None, 
+                     data: Optional[Dict[str, Any]] = None, json: Optional[Dict[str, Any]] = None) -> Any:
+        """
+        Make a request to the API.
+
+        Args:
+            method: HTTP method (GET, POST, PUT, DELETE, etc.)
+            url: URL to make the request to
+            params: Query parameters
+            data: Form data
+            json: JSON data
+
+        Returns:
+            The response from the API
+
+        Raises:
+            requests.exceptions.RequestException: If the request fails
+        """
+        response = self.session.request(
+            method=method,
+            url=url,
+            params=params,
+            data=data,
+            json=json,
+            timeout=self.timeout
+        )
+
+        # Raise an exception if the request failed
+        response.raise_for_status()
+
+        # Try to parse the response as JSON
+        try:
+            return response.json()
+        except ValueError:
+            # If the response is not JSON, return the raw response
+            return response.text
+
     {% for operation in operations %}
     def {{ operation.method_name }}(self, {% for param in operation.parameters %}{{ param.name }}: {{ param.type_hint }}{% if not loop.last %}, {% endif %}{% endfor %}{% if operation.parameters and operation.request_body %}, {% endif %}{% if operation.request_body %}request_body: Dict[str, Any]{% endif %}) -> {{ operation.return_type }}:
         """{{ operation.summary }}
@@ -49,6 +86,29 @@ class APIClient:
         """
         url = f"{self.base_url}{{ operation.path_template }}"
 
-        # Implementation would go here
-        pass
+        # Extract query parameters from the operation parameters
+        # Assume that all parameters that are not in the path are query parameters
+        params = {}
+        {% for param in operation.parameters %}
+        # Check if the parameter is in the path by looking for it in the path template
+        {% if "{" + param.name + "}" not in operation.path_template %}
+        if {{ param.name }} is not None:
+            params["{{ param.name }}"] = {{ param.name }}
+        {% endif %}
+        {% endfor %}
+
+        # Make the request
+        {% if operation.method == "get" %}
+        return self._make_request("GET", url, params=params)
+        {% elif operation.method == "post" %}
+        return self._make_request("POST", url, params=params, json={% if operation.request_body %}request_body{% else %}None{% endif %})
+        {% elif operation.method == "put" %}
+        return self._make_request("PUT", url, params=params, json={% if operation.request_body %}request_body{% else %}None{% endif %})
+        {% elif operation.method == "delete" %}
+        return self._make_request("DELETE", url, params=params, json={% if operation.request_body %}request_body{% else %}None{% endif %})
+        {% elif operation.method == "patch" %}
+        return self._make_request("PATCH", url, params=params, json={% if operation.request_body %}request_body{% else %}None{% endif %})
+        {% else %}
+        return self._make_request("{{ operation.method|upper }}", url, params=params, json={% if operation.request_body %}request_body{% else %}None{% endif %})
+        {% endif %}
     {% endfor %}
