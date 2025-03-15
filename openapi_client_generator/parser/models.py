@@ -494,13 +494,26 @@ class OpenAPISpec(BaseModel):
 
     def get_models(self) -> Dict[str, Dict[str, Any]]:
         """
-        Get all models from the specification.
+        Get all models from the specification in topologically sorted order.
+
+        This method performs a topological sort on the models based on their dependencies,
+        ensuring that models are defined before they are referenced. This is necessary
+        because Pydantic models must be defined before they can be referenced by other models.
+
+        The algorithm works as follows:
+        1. Collect all models and their properties
+        2. Identify dependencies between models by analyzing type hints
+        3. Perform a depth-first search on the dependency graph
+        4. Reverse the order of visited nodes to get the correct dependency order
 
         Returns:
-            Dict[str, Dict[str, Any]]: Dictionary of models
+            Dict[str, Dict[str, Any]]: Dictionary of models in topologically sorted order
         """
         models = {}
+        dependencies = {}
+        model_names = set()
 
+        # First pass: collect all models and their properties
         if self.components and self.components.schemas:
             for name, schema in self.components.schemas.items():
                 if isinstance(schema, Schema) and schema.properties:
@@ -510,15 +523,92 @@ class OpenAPISpec(BaseModel):
                     }
 
                     for prop_name, prop_schema in schema.properties.items():
+                        type_hint = prop_schema.get_python_type_hint() if isinstance(prop_schema, Schema) else prop_schema.get_python_type_hint()
                         prop_info = {
-                            "type_hint": prop_schema.get_python_type_hint() if isinstance(prop_schema, Schema) else prop_schema.get_python_type_hint(),
+                            "type_hint": type_hint,
                             "field_args": prop_schema.get_field_args() if isinstance(prop_schema, Schema) else "...",
                         }
                         model_info["properties"][prop_name] = prop_info
 
                     models[name] = model_info
+                    model_names.add(name)
+                    dependencies[name] = set()
 
-        return models
+        # Second pass: identify dependencies between models
+        for name, model_info in models.items():
+            model_deps = set()
+
+            for prop_name, prop_info in model_info["properties"].items():
+                type_hint = prop_info["type_hint"]
+
+                # Extract model dependencies from type hints
+                self._add_dependencies_from_type_hint(type_hint, model_deps, model_names)
+
+            dependencies[name] = model_deps
+
+        # Perform topological sort
+        sorted_models = {}
+        visited = set()
+        temp_visited = set()
+        sorted_nodes = []  # List to store nodes in topological order
+
+        def visit(node):
+            if node in temp_visited:
+                # Circular dependency detected, but we'll continue
+                return
+            if node in visited:
+                return
+
+            temp_visited.add(node)
+
+            for dep in dependencies.get(node, set()):
+                if dep in dependencies:  # Only visit nodes that exist
+                    visit(dep)
+
+            temp_visited.remove(node)
+            visited.add(node)
+            sorted_nodes.append(node)  # Add node to sorted list
+
+        # Visit all nodes
+        for name in models:
+            if name not in visited:
+                visit(name)
+
+        # Create sorted dictionary in the correct order (dependencies first)
+        for node in sorted_nodes:
+            sorted_models[node] = models[node]
+
+        return sorted_models
+
+    def _add_dependencies_from_type_hint(self, type_hint: str, deps: Set[str], model_names: Set[str]) -> None:
+        """
+        Add dependencies from a type hint to a set of dependencies.
+
+        Args:
+            type_hint: Type hint to extract dependencies from
+            deps: Set to add dependencies to
+            model_names: Set of model names to check against
+        """
+        # Look for direct references like "ModelName"
+        if type_hint in model_names:
+            deps.add(type_hint)
+        # Look for List[ModelName]
+        elif type_hint.startswith("List[") and type_hint[5:-1] in model_names:
+            deps.add(type_hint[5:-1])
+        # Look for nested List[List[ModelName]]
+        elif type_hint.startswith("List[List[") and type_hint[10:-2] in model_names:
+            deps.add(type_hint[10:-2])
+        # Look for Optional[ModelName]
+        elif type_hint.startswith("Optional[") and type_hint[9:-1] in model_names:
+            deps.add(type_hint[9:-1])
+        # Look for Optional[List[ModelName]]
+        elif type_hint.startswith("Optional[List[") and type_hint[14:-2] in model_names:
+            deps.add(type_hint[14:-2])
+        # Look for Union types
+        elif type_hint.startswith("Union["):
+            union_types = type_hint[6:-1].split(", ")
+            for union_type in union_types:
+                self._add_dependencies_from_type_hint(union_type, deps, model_names)
 
     def _find_model_for_schema(self, schema: Schema) -> Optional[str]:
         """
