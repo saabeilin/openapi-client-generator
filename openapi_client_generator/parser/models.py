@@ -159,6 +159,16 @@ class Schema(BaseModel):
             model_name = self.ref.split("/")[-1]
             return model_name
 
+        # If the schema has properties but no type, assume it's an object
+        # In this case, we should return the model name, not Dict[str, Any]
+        # However, we don't have access to the model name here, so we need to rely on the reference
+        if self.properties and not self.type:
+            # Check if we have a reference in the __dict__
+            if hasattr(self, "__dict__") and "$ref" in self.__dict__:
+                return self.__dict__["$ref"].split("/")[-1]
+            # We don't have a reference, so we return Dict[str, Any]
+            return "Dict[str, Any]"
+
         if self.type == SchemaType.STRING:
             return "str"
         elif self.type == SchemaType.NUMBER:
@@ -311,7 +321,34 @@ class Operation(BaseModel):
             content_type = next(iter(response.content))
             media_type = response.content[content_type]
             if media_type.schema_:
-                return media_type.schema_.get_python_type_hint() if isinstance(media_type.schema_, Schema) else media_type.schema_.get_python_type_hint()
+                # If the schema is a Reference, extract the model name
+                if isinstance(media_type.schema_, Reference):
+                    return media_type.schema_.get_python_type_hint()
+                # Otherwise, use the schema's get_python_type_hint method
+                else:
+                    # Check if the schema is a reference to a model in the components
+                    # This is a bit of a hack, but it's the best we can do without modifying the parser
+                    # The schema in the response might be a Schema with a reference to a model in the components
+                    # We need to extract the model name from the reference
+                    if hasattr(media_type, "__dict__") and "schema" in media_type.__dict__:
+                        schema_dict = media_type.__dict__["schema"]
+                        if isinstance(schema_dict, dict) and "$ref" in schema_dict:
+                            return schema_dict["$ref"].split("/")[-1]
+
+                    # Check if the schema has properties but no type
+                    # This happens when a reference to a model is resolved
+                    # In this case, we should return the model name
+                    if isinstance(media_type.schema_, Schema) and media_type.schema_.properties and not media_type.schema_.type:
+                        # Look for a model in the components that matches these properties
+                        # We can't do this directly, but we can check if the schema was originally a reference
+                        # by looking at the schema dictionary in the media type
+                        if hasattr(media_type, "__dict__") and "schema" in media_type.__dict__:
+                            schema_dict = media_type.__dict__["schema"]
+                            if isinstance(schema_dict, dict) and "$ref" in schema_dict:
+                                return schema_dict["$ref"].split("/")[-1]
+
+                    # Otherwise, use the schema's get_python_type_hint method
+                    return media_type.schema_.get_python_type_hint()
 
         return "Any"
 
@@ -373,6 +410,57 @@ class OpenAPISpec(BaseModel):
             for method in ["get", "put", "post", "delete", "options", "head", "patch", "trace"]:
                 operation = getattr(path_item, method, None)
                 if operation:
+                    # Get the return type
+                    return_type = operation.get_return_type()
+
+                    # Check if the return type is Dict[str, Any] and if the response has a schema with properties but no type
+                    if return_type == "Dict[str, Any]":
+                        response = operation.responses.get("200") or operation.responses.get("201")
+                        if response and hasattr(response, "content") and response.content:
+                            content_type = next(iter(response.content))
+                            media_type = response.content[content_type]
+                            if media_type.schema_ and isinstance(media_type.schema_, Schema) and media_type.schema_.properties and not media_type.schema_.type:
+                                # Try to find a model that matches the schema
+                                model_name = self._find_model_for_schema(media_type.schema_)
+                                if model_name:
+                                    return_type = model_name
+                            # Check if the schema is a Schema with type object and properties
+                            elif media_type.schema_ and isinstance(media_type.schema_, Schema) and media_type.schema_.type == SchemaType.OBJECT and media_type.schema_.properties:
+                                # Try to find a model that matches the schema
+                                model_name = self._find_model_for_schema(media_type.schema_)
+                                if model_name:
+                                    return_type = model_name
+                    # Check if the return type is List[Dict[str, Any]] and if the response has a schema with type array
+                    elif return_type == "List[Dict[str, Any]]":
+                        response = operation.responses.get("200") or operation.responses.get("201")
+                        if response and hasattr(response, "content") and response.content:
+                            content_type = next(iter(response.content))
+                            media_type = response.content[content_type]
+                            if media_type.schema_ and isinstance(media_type.schema_, Schema) and media_type.schema_.type == SchemaType.ARRAY:
+                                # Check if the items are a reference to a model
+                                if media_type.schema_.items:
+                                    if isinstance(media_type.schema_.items, Reference):
+                                        # If the items are a Reference, extract the model name
+                                        model_name = media_type.schema_.items.get_python_type_hint()
+                                        return_type = f"List[{model_name}]"
+                                    elif isinstance(media_type.schema_.items, Schema):
+                                        # If the items are a Schema, check if they have properties but no type
+                                        if media_type.schema_.items.properties and not media_type.schema_.items.type:
+                                            # Try to find a model that matches the schema
+                                            model_name = self._find_model_for_schema(media_type.schema_.items)
+                                            if model_name:
+                                                return_type = f"List[{model_name}]"
+                                        # Check if the items have a reference in the __dict__
+                                        elif hasattr(media_type.schema_.items, "__dict__") and "$ref" in media_type.schema_.items.__dict__:
+                                            model_name = media_type.schema_.items.__dict__["$ref"].split("/")[-1]
+                                            return_type = f"List[{model_name}]"
+                                        # Check if the items are a Schema with type object and properties
+                                        elif media_type.schema_.items.type == SchemaType.OBJECT and media_type.schema_.items.properties:
+                                            # Try to find a model that matches the schema
+                                            model_name = self._find_model_for_schema(media_type.schema_.items)
+                                            if model_name:
+                                                return_type = f"List[{model_name}]"
+
                     operation_info = {
                         "path": path,
                         "method": method,
@@ -384,7 +472,7 @@ class OpenAPISpec(BaseModel):
                         "responses": operation.responses,
                         "path_template": self._get_path_template(path),
                         "method_name": operation.get_python_method_name(),
-                        "return_type": operation.get_return_type(),
+                        "return_type": return_type,
                         "return_type_description": "The response from the API",
                     }
                     operations.append(operation_info)
@@ -431,3 +519,28 @@ class OpenAPISpec(BaseModel):
                     models[name] = model_info
 
         return models
+
+    def _find_model_for_schema(self, schema: Schema) -> Optional[str]:
+        """
+        Find a model in the components that matches the given schema.
+
+        Args:
+            schema: Schema to find a model for
+
+        Returns:
+            Optional[str]: Name of the matching model, or None if no match is found
+        """
+        if not schema.properties or not self.components or not self.components.schemas:
+            return None
+
+        # Get the property names of the schema
+        schema_props = set(schema.properties.keys())
+
+        # Look for a model with the same properties
+        for name, model_schema in self.components.schemas.items():
+            if isinstance(model_schema, Schema) and model_schema.properties:
+                model_props = set(model_schema.properties.keys())
+                if schema_props == model_props:
+                    return name
+
+        return None
