@@ -3,7 +3,7 @@
 import httpx
 import json
 from json import JSONDecodeError
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Union, TypeVar, get_origin, get_args
 from pydantic import BaseModel
 
 from .models import *
@@ -101,46 +101,123 @@ class APIClient:
 
         # Make the request
         {% if operation.method == "get" %}
-        return self._make_request("GET", url, params=params)
+        response = self._make_request("GET", url, params=params)
+        {% if "List[" in operation.return_type %}
+        # Apply model_validate to each item in the list
+        return [{{ operation.return_type[5:-1] }}.model_validate(item) for item in response]
+        {% else %}
+        # For non-list types, apply model_validate directly
+        return {{ operation.return_type }}.model_validate(response)
+        {% endif %}
         {% elif operation.method == "post" %}
         {% if operation.request_body %}
         # Check if request_body is a Pydantic model and convert it to JSON if it is
         json_data = request_body.model_dump(mode="json") if isinstance(request_body, BaseModel) else request_body
-        return self._make_request("POST", url, params=params, json=json_data)
+        response = self._make_request("POST", url, params=params, json=json_data)
+        {% if "List[" in operation.return_type %}
+        # Apply model_validate to each item in the list
+        return [{{ operation.return_type[5:-1] }}.model_validate(item) for item in response]
         {% else %}
-        return self._make_request("POST", url, params=params, json=None)
+        # For non-list types, apply model_validate directly
+        return {{ operation.return_type }}.model_validate(response)
+        {% endif %}
+        {% else %}
+        response = self._make_request("POST", url, params=params, json=None)
+        {% if "List[" in operation.return_type %}
+        # Apply model_validate to each item in the list
+        return [{{ operation.return_type[5:-1] }}.model_validate(item) for item in response]
+        {% else %}
+        # For non-list types, apply model_validate directly
+        return {{ operation.return_type }}.model_validate(response)
+        {% endif %}
         {% endif %}
         {% elif operation.method == "put" %}
         {% if operation.request_body %}
         # Check if request_body is a Pydantic model and convert it to JSON if it is
         json_data = request_body.model_dump(mode="json") if isinstance(request_body, BaseModel) else request_body
-        return self._make_request("PUT", url, params=params, json=json_data)
+        response = self._make_request("PUT", url, params=params, json=json_data)
+        {% if "List[" in operation.return_type %}
+        # Apply model_validate to each item in the list
+        return [{{ operation.return_type[5:-1] }}.model_validate(item) for item in response]
         {% else %}
-        return self._make_request("PUT", url, params=params, json=None)
+        # For non-list types, apply model_validate directly
+        return {{ operation.return_type }}.model_validate(response)
+        {% endif %}
+        {% else %}
+        response = self._make_request("PUT", url, params=params, json=None)
+        {% if "List[" in operation.return_type %}
+        # Apply model_validate to each item in the list
+        return [{{ operation.return_type[5:-1] }}.model_validate(item) for item in response]
+        {% else %}
+        # For non-list types, apply model_validate directly
+        return {{ operation.return_type }}.model_validate(response)
+        {% endif %}
         {% endif %}
         {% elif operation.method == "delete" %}
         {% if operation.request_body %}
         # Check if request_body is a Pydantic model and convert it to JSON if it is
         json_data = request_body.model_dump(mode="json") if isinstance(request_body, BaseModel) else request_body
-        return self._make_request("DELETE", url, params=params, json=json_data)
+        response = self._make_request("DELETE", url, params=params, json=json_data)
+        {% if "List[" in operation.return_type %}
+        # Apply model_validate to each item in the list
+        return [{{ operation.return_type[5:-1] }}.model_validate(item) for item in response]
         {% else %}
-        return self._make_request("DELETE", url, params=params, json=None)
+        # For non-list types, apply model_validate directly
+        return {{ operation.return_type }}.model_validate(response)
+        {% endif %}
+        {% else %}
+        response = self._make_request("DELETE", url, params=params, json=None)
+        {% if "List[" in operation.return_type %}
+        # Apply model_validate to each item in the list
+        return [{{ operation.return_type[5:-1] }}.model_validate(item) for item in response]
+        {% else %}
+        # For non-list types, apply model_validate directly
+        return {{ operation.return_type }}.model_validate(response)
+        {% endif %}
         {% endif %}
         {% elif operation.method == "patch" %}
         {% if operation.request_body %}
         # Check if request_body is a Pydantic model and convert it to JSON if it is
         json_data = request_body.model_dump(mode="json") if isinstance(request_body, BaseModel) else request_body
-        return self._make_request("PATCH", url, params=params, json=json_data)
+        response = self._make_request("PATCH", url, params=params, json=json_data)
+        {% if "List[" in operation.return_type %}
+        # Apply model_validate to each item in the list
+        return [{{ operation.return_type[5:-1] }}.model_validate(item) for item in response]
         {% else %}
-        return self._make_request("PATCH", url, params=params, json=None)
+        # For non-list types, apply model_validate directly
+        return {{ operation.return_type }}.model_validate(response)
+        {% endif %}
+        {% else %}
+        response = self._make_request("PATCH", url, params=params, json=None)
+        {% if "List[" in operation.return_type %}
+        # Apply model_validate to each item in the list
+        return [{{ operation.return_type[5:-1] }}.model_validate(item) for item in response]
+        {% else %}
+        # For non-list types, apply model_validate directly
+        return {{ operation.return_type }}.model_validate(response)
+        {% endif %}
         {% endif %}
         {% else %}
         {% if operation.request_body %}
         # Check if request_body is a Pydantic model and convert it to JSON if it is
         json_data = request_body.model_dump(mode="json") if isinstance(request_body, BaseModel) else request_body
-        return self._make_request("{{ operation.method|upper }}", url, params=params, json=json_data)
+        response = self._make_request("{{ operation.method|upper }}", url, params=params, json=json_data)
+        {% if "List[" in operation.return_type %}
+        # Apply model_validate to each item in the list
+        return [{{ operation.return_type[5:-1] }}.model_validate(item) for item in response]
         {% else %}
-        return self._make_request("{{ operation.method|upper }}", url, params=params, json=None)
+        # For non-list types, apply model_validate directly
+        return {{ operation.return_type }}.model_validate(response)
+        {% endif %}
+        {% else %}
+        response = self._make_request("{{ operation.method|upper }}", url, params=params, json=None)
+        {% if "List[" in operation.return_type %}
+        # Apply model_validate to each item in the list
+        return [{{ operation.return_type[5:-1] }}.model_validate(item) for item in response]
+        {% else %}
+        # For non-list types, apply model_validate directly
+        return {{ operation.return_type }}.model_validate(response)
+        {% endif %}
         {% endif %}
         {% endif %}
     {% endfor %}
@@ -207,77 +284,4 @@ class AsyncAPIClient:
             return response.text
 
     {% for operation in operations %}
-    async def {{ operation.method_name }}(self, {% for param in operation.parameters %}{{ param.name }}: {{ param.type_hint }}{% if not loop.last %}, {% endif %}{% endfor %}{% if operation.parameters and operation.request_body %}, {% endif %}{% if operation.request_body %}request_body: {{ operation.request_body.type_hint }}{% endif %}) -> {{ operation.return_type }}:
-        """{{ operation.summary }}
-
-        {{ operation.description }}
-        {% for param in operation.parameters %}
-        Args:
-            {{ param.name }}: {{ param.description }}
-        {% endfor %}
-        {% if operation.request_body %}
-        Args:
-            request_body: {{ operation.request_body.description }}
-        {% endif %}
-
-        Returns:
-            {{ operation.return_type_description }}
-        """
-        url = f"{self.base_url}{{ operation.path_template }}"
-
-        # Extract query parameters from the operation parameters
-        # Assume that all parameters that are not in the path are query parameters
-        params = {}
-        {% for param in operation.parameters %}
-        # Check if the parameter is in the path by looking for it in the path template
-        {% if "{" + param.name + "}" not in operation.path_template %}
-        if {{ param.name }} is not None:
-            params["{{ param.name }}"] = {{ param.name }}
-        {% endif %}
-        {% endfor %}
-
-        # Make the request
-        {% if operation.method == "get" %}
-        return await self._make_request("GET", url, params=params)
-        {% elif operation.method == "post" %}
-        {% if operation.request_body %}
-        # Check if request_body is a Pydantic model and convert it to JSON if it is
-        json_data = request_body.model_dump(mode="json") if isinstance(request_body, BaseModel) else request_body
-        return await self._make_request("POST", url, params=params, json=json_data)
-        {% else %}
-        return await self._make_request("POST", url, params=params, json=None)
-        {% endif %}
-        {% elif operation.method == "put" %}
-        {% if operation.request_body %}
-        # Check if request_body is a Pydantic model and convert it to JSON if it is
-        json_data = request_body.model_dump(mode="json") if isinstance(request_body, BaseModel) else request_body
-        return await self._make_request("PUT", url, params=params, json=json_data)
-        {% else %}
-        return await self._make_request("PUT", url, params=params, json=None)
-        {% endif %}
-        {% elif operation.method == "delete" %}
-        {% if operation.request_body %}
-        # Check if request_body is a Pydantic model and convert it to JSON if it is
-        json_data = request_body.model_dump(mode="json") if isinstance(request_body, BaseModel) else request_body
-        return await self._make_request("DELETE", url, params=params, json=json_data)
-        {% else %}
-        return await self._make_request("DELETE", url, params=params, json=None)
-        {% endif %}
-        {% elif operation.method == "patch" %}
-        {% if operation.request_body %}
-        # Check if request_body is a Pydantic model and convert it to JSON if it is
-        json_data = request_body.model_dump(mode="json") if isinstance(request_body, BaseModel) else request_body
-        return await self._make_request("PATCH", url, params=params, json=json_data)
-        {% else %}
-        return await self._make_request("PATCH", url, params=params, json=None)
-        {% endif %}
-        {% else %}
-        {% if operation.request_body %}
-        # Check if request_body is a Pydantic model and convert it to JSON if it is
-        json_data = request_body.model_dump(mode="json") if isinstance(request_body, BaseModel) else request_body
-        return await self._make_request("{{ operation.method|upper }}", url, params=params, json=json_data)
-        {% else %}
-        return await self._make_request("{{ operation.method|upper }}", url, params=params, json=None)
-        {% endif %}
-        {% endif %}
-    {% endfor %}
+    async def {{ operation.method_name }}(self, {% for param in operation.parameters %}{{ param.name }}: {{ param.type_hint }}{% if not loop.last %}, {% endif %}{% endfor %}{% if operation.parameters and operation.request_body %}, {% endif %}{% if operation.request_body %}request_body: {{
