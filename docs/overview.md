@@ -34,6 +34,7 @@ openapi_client_generator [OPTIONS] SPEC_PATH
 - `--httpx`: Generate a client using the `httpx` library (both synchronous and asynchronous)
 - `--output-dir PATH`: Directory where the generated client will be placed (default: current directory)
 - `--package-name NAME`: Name of the generated Python package (default: derived from the API title in the spec)
+- `--no-models`: Skip generation of model classes
 
 ## HTTP Client Libraries
 

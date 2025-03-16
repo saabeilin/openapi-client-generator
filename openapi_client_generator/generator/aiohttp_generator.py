@@ -40,8 +40,9 @@ class AiohttpClientGenerator(ClientGenerator):
         # Create client.py
         self._generate_client_file(spec, package_dir)
 
-        # Create models.py
-        self._generate_models_file(spec, package_dir)
+        # Create models.py if generate_models is True
+        if self.generate_models:
+            self._generate_models_file(spec, package_dir)
 
     def _generate_client_file(self, spec: OpenAPISpec, package_dir: Path) -> None:
         """

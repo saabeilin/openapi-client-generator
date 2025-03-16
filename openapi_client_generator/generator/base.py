@@ -22,16 +22,18 @@ class ClientGenerator(ABC):
     from OpenAPI specifications.
     """
 
-    def __init__(self, output_dir: str, package_name: Optional[str] = None):
+    def __init__(self, output_dir: str, package_name: Optional[str] = None, generate_models: bool = True):
         """
         Initialize the client generator.
 
         Args:
             output_dir: Directory where the generated code will be written
             package_name: Name of the generated package (default: derived from API title)
+            generate_models: Whether to generate model classes (default: True)
         """
         self.output_dir = Path(output_dir)
         self.package_name = package_name
+        self.generate_models = generate_models
         self.template_env = None
 
     def generate(self, spec: OpenAPISpec) -> None:
