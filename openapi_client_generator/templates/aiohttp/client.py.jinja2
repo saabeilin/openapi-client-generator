@@ -4,6 +4,7 @@ import aiohttp
 import json
 from json import JSONDecodeError
 from typing import Dict, List, Any, Optional, Union
+from pydantic import BaseModel
 
 from .models import *
 
@@ -112,14 +113,44 @@ class APIClient:
         {% if operation.method == "get" %}
         return await self._make_request("GET", url, params=params)
         {% elif operation.method == "post" %}
-        return await self._make_request("POST", url, params=params, json={% if operation.request_body %}request_body{% else %}None{% endif %})
-        {% elif operation.method == "put" %}
-        return await self._make_request("PUT", url, params=params, json={% if operation.request_body %}request_body{% else %}None{% endif %})
-        {% elif operation.method == "delete" %}
-        return await self._make_request("DELETE", url, params=params, json={% if operation.request_body %}request_body{% else %}None{% endif %})
-        {% elif operation.method == "patch" %}
-        return await self._make_request("PATCH", url, params=params, json={% if operation.request_body %}request_body{% else %}None{% endif %})
+        {% if operation.request_body %}
+        # Check if request_body is a Pydantic model and convert it to JSON if it is
+        json_data = request_body.model_dump(mode="json") if isinstance(request_body, BaseModel) else request_body
+        return await self._make_request("POST", url, params=params, json=json_data)
         {% else %}
-        return await self._make_request("{{ operation.method|upper }}", url, params=params, json={% if operation.request_body %}request_body{% else %}None{% endif %})
+        return await self._make_request("POST", url, params=params, json=None)
+        {% endif %}
+        {% elif operation.method == "put" %}
+        {% if operation.request_body %}
+        # Check if request_body is a Pydantic model and convert it to JSON if it is
+        json_data = request_body.model_dump(mode="json") if isinstance(request_body, BaseModel) else request_body
+        return await self._make_request("PUT", url, params=params, json=json_data)
+        {% else %}
+        return await self._make_request("PUT", url, params=params, json=None)
+        {% endif %}
+        {% elif operation.method == "delete" %}
+        {% if operation.request_body %}
+        # Check if request_body is a Pydantic model and convert it to JSON if it is
+        json_data = request_body.model_dump(mode="json") if isinstance(request_body, BaseModel) else request_body
+        return await self._make_request("DELETE", url, params=params, json=json_data)
+        {% else %}
+        return await self._make_request("DELETE", url, params=params, json=None)
+        {% endif %}
+        {% elif operation.method == "patch" %}
+        {% if operation.request_body %}
+        # Check if request_body is a Pydantic model and convert it to JSON if it is
+        json_data = request_body.model_dump(mode="json") if isinstance(request_body, BaseModel) else request_body
+        return await self._make_request("PATCH", url, params=params, json=json_data)
+        {% else %}
+        return await self._make_request("PATCH", url, params=params, json=None)
+        {% endif %}
+        {% else %}
+        {% if operation.request_body %}
+        # Check if request_body is a Pydantic model and convert it to JSON if it is
+        json_data = request_body.model_dump(mode="json") if isinstance(request_body, BaseModel) else request_body
+        return await self._make_request("{{ operation.method|upper }}", url, params=params, json=json_data)
+        {% else %}
+        return await self._make_request("{{ operation.method|upper }}", url, params=params, json=None)
+        {% endif %}
         {% endif %}
     {% endfor %}
