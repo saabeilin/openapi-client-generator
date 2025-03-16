@@ -307,6 +307,74 @@ class Operation(BaseModel):
         s2 = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', s1)
         return s2.lower()
 
+    def get_request_body_type(self) -> str:
+        """
+        Get the request body type for the operation.
+
+        Returns:
+            str: Request body type
+        """
+        if not self.request_body:
+            return "None"
+
+        # If the request body is a Reference, extract the model name
+        if isinstance(self.request_body, Reference):
+            return self.request_body.get_python_type_hint()
+
+        # If the request body is a RequestBody, extract the schema from the content
+        if self.request_body.content:
+            # Get the first content type
+            content_type = next(iter(self.request_body.content))
+            media_type = self.request_body.content[content_type]
+            if media_type.schema_:
+                # If the schema is a Reference, extract the model name
+                if isinstance(media_type.schema_, Reference):
+                    return media_type.schema_.get_python_type_hint()
+                # Otherwise, use the schema's get_python_type_hint method
+                else:
+                    # Check if the schema is a reference to a model in the components
+                    # This is the case when the schema has a $ref field in its __dict__
+                    if hasattr(media_type, "__dict__") and "schema" in media_type.__dict__:
+                        schema_dict = media_type.__dict__["schema"]
+                        if isinstance(schema_dict, dict) and "$ref" in schema_dict:
+                            return schema_dict["$ref"].split("/")[-1]
+
+                    # Check if the schema has properties but no type
+                    # This is the case when a reference to a model is resolved
+                    if isinstance(media_type.schema_, Schema) and media_type.schema_.properties and not media_type.schema_.type:
+                        # Look for a model in the components that matches these properties
+                        if hasattr(media_type, "__dict__") and "schema" in media_type.__dict__:
+                            schema_dict = media_type.__dict__["schema"]
+                            if isinstance(schema_dict, dict) and "$ref" in schema_dict:
+                                return schema_dict["$ref"].split("/")[-1]
+
+                    # Check if the schema has a reference but no type
+                    # This is the case when a schema has a reference but is missing "type: object"
+                    if isinstance(media_type.schema_, Schema) and hasattr(media_type.schema_, "ref") and media_type.schema_.ref:
+                        return media_type.schema_.ref.split("/")[-1]
+
+                    # Check if the schema has properties and is of type object
+                    # This is the case when a reference to a model is resolved and the type is set to object
+                    if isinstance(media_type.schema_, Schema) and media_type.schema_.properties and media_type.schema_.type == SchemaType.OBJECT:
+                        # Try to find a model in the components that matches these properties
+                        # We need to access the OpenAPISpec instance to find the model
+                        # Since we don't have direct access to it, we'll check if the schema's properties
+                        # match any of the models in the components by comparing property names
+                        from inspect import currentframe, getouterframes
+                        for frame_info in getouterframes(currentframe()):
+                            frame = frame_info.frame
+                            if 'self' in frame.f_locals and isinstance(frame.f_locals['self'], OpenAPISpec):
+                                spec = frame.f_locals['self']
+                                model_name = spec._find_model_for_schema(media_type.schema_)
+                                if model_name:
+                                    return model_name
+                                break
+
+                    # Otherwise, use the schema's get_python_type_hint method
+                    return media_type.schema_.get_python_type_hint()
+
+        return "Dict[str, Any]"
+
     def get_return_type(self) -> str:
         """
         Get the return type for the operation.
@@ -461,6 +529,11 @@ class OpenAPISpec(BaseModel):
                                             if model_name:
                                                 return_type = f"List[{model_name}]"
 
+                    # Get the request body type if the operation has a request body
+                    request_body_type = None
+                    if operation.request_body:
+                        request_body_type = operation.get_request_body_type()
+
                     operation_info = {
                         "path": path,
                         "method": method,
@@ -469,6 +542,7 @@ class OpenAPISpec(BaseModel):
                         "description": operation.description or "",
                         "parameters": operation.parameters or [],
                         "request_body": operation.request_body,
+                        "request_body_type": request_body_type,  # Add the request body type
                         "responses": operation.responses,
                         "path_template": self._get_path_template(path),
                         "method_name": operation.get_python_method_name(),

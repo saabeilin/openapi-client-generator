@@ -96,7 +96,7 @@ class HttpxClientGenerator(ClientGenerator):
 
             # Process request body if it exists
             if operation.get("request_body"):
-                # If request_body is a Reference or RequestBody object, extract the description
+                # If request_body is a Reference or RequestBody object, extract the description and type
                 request_body = operation["request_body"]
                 description = ""
                 if hasattr(request_body, "description"):
@@ -104,10 +104,15 @@ class HttpxClientGenerator(ClientGenerator):
                 elif isinstance(request_body, dict) and "description" in request_body:
                     description = request_body["description"] or ""
 
-                # Set the request_body to True to indicate that it exists
-                # The template will use this to add the request_body parameter
+                # Get the request body type from the operation dictionary
+                request_body_type = "Dict[str, Any]"
+                if "request_body_type" in operation and operation["request_body_type"]:
+                    request_body_type = operation["request_body_type"]
+
+                # Set the request_body to a dictionary with description and type_hint
                 operation["request_body"] = {
-                    "description": description
+                    "description": description,
+                    "type_hint": request_body_type
                 }
 
         # Render the client template

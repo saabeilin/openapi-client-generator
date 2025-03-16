@@ -68,7 +68,7 @@ class APIClient:
             return response.text
 
     {% for operation in operations %}
-    def {{ operation.method_name }}(self, {% for param in operation.parameters %}{{ param.name }}: {{ param.type_hint }}{% if not loop.last %}, {% endif %}{% endfor %}{% if operation.parameters and operation.request_body %}, {% endif %}{% if operation.request_body %}request_body: Dict[str, Any]{% endif %}) -> {{ operation.return_type }}:
+    def {{ operation.method_name }}(self, {% for param in operation.parameters %}{{ param.name }}: {{ param.type_hint }}{% if not loop.last %}, {% endif %}{% endfor %}{% if operation.parameters and operation.request_body %}, {% endif %}{% if operation.request_body %}request_body: {{ operation.request_body.type_hint }}{% endif %}) -> {{ operation.return_type }}:
         """{{ operation.summary }}
 
         {{ operation.description }}
