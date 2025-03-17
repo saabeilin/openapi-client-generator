@@ -184,7 +184,7 @@ class TestRequestsGenerator:
 
         # Check that the methods with operation IDs are generated correctly
         assert "def get_user_by_id(self, user_id: int)" in client_code
-        assert "def create_user(self, request_body: Dict[str, Any])" in client_code
+        assert "def create_user(self, request_body: User)" in client_code
 
     def test_generate_client_with_request_body(self, sample_openapi_spec, temp_output_dir):
         """Test generating a client with request bodies."""
@@ -203,8 +203,9 @@ class TestRequestsGenerator:
             client_code = f.read()
 
         # Check that the methods with request bodies have the request_body parameter
-        assert "def create_user(self, request_body: Dict[str, Any])" in client_code
-        assert 'return self._make_request("POST", url, params=params, json=request_body)' in client_code
+        assert "def create_user(self, request_body: User)" in client_code
+        assert 'json_data = request_body.model_dump(mode="json") if isinstance(request_body, BaseModel) else request_body' in client_code
+        assert 'response = self._make_request("POST", url, params=params, json=json_data)' in client_code
 
     def test_generate_client_with_reference_without_type(self, sample_openapi_spec, temp_output_dir):
         """Test generating a client with references without type."""
